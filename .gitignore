@@ -102,3 +102,9 @@ ENV/
 
 # PyCharm stuff
 .idea/
+
+# Editor temporaries
+*.bak
+*.*~
+*.swp
+*.backup
