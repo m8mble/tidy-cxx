@@ -133,7 +133,16 @@ class _IncludeBuffer:
 
 class IncludeArranger(comment_parser.CommentParser):
 
-    def __init__(self, git_root, original_name, include_sequence=None):
+    def __init__(self, git_root, original_name, include_sequence=None, include_apply=None):
+        """ Class for normalizing include structure for a single file of source code.
+
+            TODO: Generalize git_root to project_root
+
+        :param git_root:
+        :param original_name: Full path to input file (abs. or relative to git_root).
+        :param include_sequence:
+        :param include_apply: Callback invoked on each include discovered. TODO: Document interface.
+        """
         comment_parser.CommentParser.__init__(self)
         self.git_root = git_root  # Root folder of the managing git repository
         self.original_name = original_name  # Filename of the original input file
@@ -152,6 +161,12 @@ class IncludeArranger(comment_parser.CommentParser):
         if not include_sequence:
             include_sequence = IncludeSequencer()
         self._include_sequence = include_sequence
+
+        # Applier called ofr each include
+        if not include_apply:
+            def include_apply(include, absolute=True):
+                return absolute, include
+        self._include_apply = include_apply
 
     def _store_buffer(self):
         """ Save previously buffered data (comments, include path etc.) to the internal cache
@@ -178,9 +193,13 @@ class IncludeArranger(comment_parser.CommentParser):
         if description:
             self.icomments[include] += ' ' + description
 
-    def _prepare_include(self, incl, abs=True):
-        assert isinstance(abs, bool)
-        return incl
+    def _prepare_include(self, include, absolute=True):
+        """ Applier called on each discovered include once.
+
+            The purpose of this standalone method is to allow / specify kwd-based calls.
+        """
+        assert isinstance(absolute, bool)
+        return self._include_apply(include=include, absolute=absolute)
 
     def handle_code(self, code):
         matches = re.match('\s*#include\s*(?P<token>["<])(?P<incl>[^">]+)[">]\s*$', code)
@@ -223,32 +242,37 @@ class IncludeArranger(comment_parser.CommentParser):
         return len(self.abs_includes) + len(self.rel_includes) + len(self.sys_includes) + (1 if self.mother else 0)
 
     def _prepare_includes(self):
+        verified_abs, verified_rel = [], []
         # Cope with absolute includes
-        verified_abs = []
         for i in self.abs_includes:
-            p = self._prepare_include(i, abs=True)
-            if p:
-                verified_abs.append(p)
-                if i != p:  #TODO: Do anyways?
-                    self.icomments[p] = self.icomments[i]
-            else:
+            absolute, p = self._prepare_include(include=i, absolute=True)
+            if not p:
                 logging.warning('Failed preparing %s. Removing it!' % i)
+            elif absolute:  # p is indeed an absolute include
+                verified_abs.append(p)
+            else:  # p is in fact a relative include
+                verified_rel.append(p)
+            if p:
+                self.icomments[p] = self.icomments[i]
 
         # Cope with relative includes
-        verified_rel = []
         original_path, original_name = os.path.split(self.original_name)
         mother_re = re.compile('^' + original_name.split('.', 1)[0] + '\.[Hh]$') # TODO: Doesn't work with multiple '.' in filenames
         for i in self.rel_includes:
-            p = self._prepare_include(i, relative_to=original_path)
-            if not p or os.path.split(p)[0]:
+            abs, p = self._prepare_include(include=i, absolute=False)
+            if not p or os.path.split(p)[0]:  # TODO: Second condition ?
                 logging.warning('Failed to prepare %s. Removing it!' % i)
-            else:
+            elif not abs:
                 p = os.path.split(p)[1]
                 if mother_re.match(p):
                     self.mother = p
                     logging.info('Found mother %s' % self.mother)
                 else:
                     verified_rel.append(p)
+            elif abs:
+                verified_abs.append(p)
+            if p:
+                self.icomments[p] = self.icomments[i]
 
         self.abs_includes = sorted(set(verified_abs), key=lambda x: self._include_sequence.sort_id(x) + x)
         self.rel_includes = sorted(set(verified_rel))
