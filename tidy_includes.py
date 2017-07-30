@@ -103,3 +103,211 @@ class IncludeSequencer(object):
         length = max(ivl, len(sid) - ivl)
         return sid
 
+
+########################################################################################################################
+
+
+class _IncludeBuffer:
+    def __init__(self):
+        self.include = None
+        self.comments = []  # List of comment strings
+        # True for relative include (smae folder)
+        # False for system and absolute includes (includes relative to -I compile settings)
+        self.relative = None
+        self.original = ''  # How the include line and its' description were formatted originally
+
+    def clear(self):
+        self.include = None
+        self.comments = []
+        self.relative = None
+        self.original = ''
+
+    def description(self):
+        return ' '.join(self.comments)
+
+    def add_comment(self, old, text):
+        assert isinstance(old, bool) and isinstance(text, str)
+        self.comments.append(text)
+        self.original += (('/*%s*/' if old else '//%s') % text)
+
+
+class IncludeArranger(comment_parser.CommentParser):
+
+    def __init__(self, git_root, original_name, include_sequence=None):
+        comment_parser.CommentParser.__init__(self)
+        self.git_root = git_root  # Root folder of the managing git repository
+        self.original_name = original_name  # Filename of the original input file
+        self.abs_includes = set()
+        self.rel_includes = set()
+        self.sys_includes = set()
+        self.icomments = collections.defaultdict(str)  # Mapping include files -> corr. comment_buffer in source code
+        self.mother = None  # The header corresponding to this source file (ie. C file)
+        self.line_length = 120
+
+        # Variables realted to parsing
+        self._buffer = _IncludeBuffer()
+        self._line_with_code = False
+
+        # Ordering of the include
+        if not include_sequence:
+            include_sequence = IncludeSequencer()
+        self._include_sequence = include_sequence
+
+    def _store_buffer(self):
+        """ Save previously buffered data (comments, include path etc.) to the internal cache
+        """
+        assert self._buffer.include  # Otherwise no include statement got buffered
+
+        if not self.num_cached_includes():
+            # Directly print newlines here that precede a new block and otherwise would get lost
+            matches = re.match('^(?P<preceding>\n*)', self._buffer.original)  # TODO: Only in the beginning
+            if matches:
+                print(matches.group('preceding'), end='')
+
+        include = self._buffer.include
+        if '/' in include:
+            dest = self.abs_includes
+        elif self._buffer.relative:
+            dest = self.rel_includes
+        else:
+            dest = self.sys_includes
+        dest.add(include)
+
+        # Save description, ie. comments, if non-trivial
+        description = self._buffer.description()
+        if description:
+            self.icomments[include] += ' ' + description
+
+    def _prepare_include(self, incl, abs=True):
+        assert isinstance(abs, bool)
+        return incl
+
+    def handle_code(self, code):
+        matches = re.match('\s*#include\s*(?P<token>["<])(?P<incl>[^">]+)[">]\s*$', code)
+        if matches:
+            self._buffer.include = matches.group('incl')
+            self._buffer.relative = (matches.group('token') == '"')
+        else:
+            self._buffer.original += code
+            if code.strip():
+                self._line_with_code = True
+
+    def handle_old_comment(self, comment):
+        self._buffer.add_comment(True, comment)
+
+    def handle_new_comment(self, comment):
+        self._buffer.add_comment(False, comment)
+
+    def handle_end_of_line(self):
+        if self._buffer.include:
+            self._store_buffer()
+            self._buffer.clear()
+        else:
+            in_empty_line = self._buffer.original and self._buffer.original[-1] == '\n'
+            self._buffer.original += '\n'
+            if in_empty_line or self._line_with_code:
+                self.empty_cache()
+        self._line_with_code = False
+
+    def empty_cache(self):
+        # Print cached data about include
+        self._print_cached()
+        self._reset()
+        # Print remaining buffered code with a newline
+        if self._buffer.original:
+            assert self._buffer.original[-1] == '\n'
+            print(self._buffer.original, end='')
+        self._buffer.clear()
+
+    def num_cached_includes(self):
+        return len(self.abs_includes) + len(self.rel_includes) + len(self.sys_includes) + (1 if self.mother else 0)
+
+    def _prepare_includes(self):
+        # Cope with absolute includes
+        verified_abs = []
+        for i in self.abs_includes:
+            p = self._prepare_include(i, abs=True)
+            if p:
+                verified_abs.append(p)
+                if i != p:  #TODO: Do anyways?
+                    self.icomments[p] = self.icomments[i]
+            else:
+                logging.warning('Failed preparing %s. Removing it!' % i)
+
+        # Cope with relative includes
+        verified_rel = []
+        original_path, original_name = os.path.split(self.original_name)
+        mother_re = re.compile('^' + original_name.split('.', 1)[0] + '\.[Hh]$') # TODO: Doesn't work with multiple '.' in filenames
+        for i in self.rel_includes:
+            p = self._prepare_include(i, relative_to=original_path)
+            if not p or os.path.split(p)[0]:
+                logging.warning('Failed to prepare %s. Removing it!' % i)
+            else:
+                p = os.path.split(p)[1]
+                if mother_re.match(p):
+                    self.mother = p
+                    logging.info('Found mother %s' % self.mother)
+                else:
+                    verified_rel.append(p)
+
+        self.abs_includes = sorted(set(verified_abs), key=lambda x: self._include_sequence.sort_id(x) + x)
+        self.rel_includes = sorted(set(verified_rel))
+        self.sys_includes = sorted(self.sys_includes)
+
+    def _include_text(self, ifile, pre='<', post='>'):
+        include_stub = '#include ' + pre + str(ifile) + post
+        comment = self.icomments[ifile].strip()
+
+        # Compress whitespace, remove newline chars
+        comment_text = re.sub('[\n\t ]+', ' ', comment)
+
+        oneliner = include_stub + ((' // ' + comment_text) if comment_text else '')
+        if len(oneliner) <= self.line_length:
+            # Short comment that may be placed in a single line
+            return oneliner + '\n'
+        else:
+            # Comment too long, split it apart
+            lines = [('// %s' % line) for line in textwrap.wrap(comment_text, width=(self.line_length - len('// ')))]
+            lines.append(include_stub)
+            return '\n'.join(lines) + '\n'
+
+    def _print_cached(self):
+        logging.debug('Printing cache...')
+        self._prepare_includes()
+        prev_group_id = None
+        data_to_print = []
+        if self.mother:
+            data_to_print.append(([self.mother], '"', '"'))
+        data_to_print.append((self.sys_includes, '<', '>'))
+        data_to_print.append((self.abs_includes, '<', '>'))
+        data_to_print.append((self.rel_includes, '"', '"'))
+
+        group_texts = []
+        for data, pre, post in data_to_print:
+            group_texts.append('')
+            for include in data:
+                new_group_id = self._include_sequence.group_id(include)
+                if prev_group_id != new_group_id:
+                    group_texts.append('')
+                group_texts[-1] += self._include_text(include, pre, post)
+                prev_group_id = new_group_id
+        print('\n'.join([g for g in group_texts if g]), end='')
+
+    def _reset(self):
+        logging.debug('Resetting cached data..')
+        self.sys_includes = set()
+        self.abs_includes = set()
+        self.rel_includes = set()
+        self.mother = None
+        self.icomments.clear()
+
+
+def arrange_includes(src_file, git_root=None):
+    if not git_root:
+        git_root = subprocess.check_output('git rev-parse --show-toplevel'.split()).strip()
+    arranger = IncludeArranger(git_root, src_file)
+    # with fileinput.FileInput(sys.argv[1:], inplace=True, backup='.nwb')
+    with open(src_file, 'r') as code:
+        for line in code.readlines():
+            arranger.feed(line)
+    arranger.empty_cache()
