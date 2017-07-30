@@ -256,6 +256,7 @@ class IncludeArranger(comment_parser.CommentParser):
                 self.icomments[p] = self.icomments[i]
 
         # Cope with relative includes
+        # TODO: Do we really need this double copy pasta
         original_path, original_name = os.path.split(self.original_name)
         mother_re = re.compile('^' + original_name.split('.', 1)[0] + '\.[Hh]$') # TODO: Doesn't work with multiple '.' in filenames
         for i in self.rel_includes:
