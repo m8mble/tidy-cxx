@@ -9,8 +9,8 @@ import comment_parser
 
 
 class TestIncludeOrdering:
-    @pytest.fixture
-    def test_sequencer(self):
+    @staticmethod
+    def default_sequencer():
         seq = tidy_includes.IncludeSequencer()
         root = seq.add_root()
         root.insert('componentA', descendable=True)
@@ -21,6 +21,10 @@ class TestIncludeOrdering:
         root['componentA'].insert('subA1')
         root['componentA']['subA1'].insert('subA1a', descendable=True)
         return seq
+
+    @pytest.fixture
+    def test_sequencer(self):
+        return TestIncludeOrdering.default_sequencer()
 
     def test_group_id(self, test_sequencer):
         base_length = len(test_sequencer.invalid_id)
@@ -189,7 +193,10 @@ class TestIncludeArranging:
 
     @pytest.fixture
     def include_arranger(self):
-        return tidy_includes.IncludeArranger('/home/john/work/', 'prjA/mom.C')
+        return tidy_includes.IncludeArranger(
+            git_root='/home/john/work/',
+            original_name='prjA/mom.C',
+            include_sequence=TestIncludeOrdering.default_sequencer())
 
     def _assert_printed(self, capfd, subC0out='', subC0err=''):
         assert capfd.readouterr() == (subC0out, subC0err)
