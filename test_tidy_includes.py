@@ -314,13 +314,20 @@ some code line
 
     def test_include_formatting(self, capfd, include_arranger):
         code = '''
-#include <iostream>
-#include <real_file.H>
-#include <where/I/Am/at/real_more.H>
-#include "real_even.H"
 #include "string"
+#include <real_file.H>
+#include <iostream>
+#include "real_even.H"
+#include <where/I/Am/at/real_more.H>
 '''
         expected = '''
+#include <iostream>
+#include <real_file.H>
+
+#include <where/I/Am/at/real_more.H>
+
+#include "real_even.H"
+#include "string"
 '''
         self.perform_test(include_arranger, capfd, code, expected)
 
