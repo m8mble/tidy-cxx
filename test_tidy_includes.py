@@ -348,16 +348,17 @@ some code line
 #include <componentA/subA0/subA0b/l2.H>
 '''
 
+        # Note: subA0 is descendable, while subC0 isn't.
         expected = '''
+#include <dep0>
 #include <iostream>
 
-#include <dep0>
-
-#include <componentC/subC0/l1.H>
-#include <componentC/subC0/l0.H>
+#include <componentA/subA0/subA0a/base.H>
 
 #include <componentA/subA0/subA0b/l2.H>
-#include <componentA/subA0/subA0a/base.H>
+
+#include <componentC/subC0/l0.H>
+#include <componentC/subC0/l1.H>
 '''
         self.perform_test(include_arranger, capfd, code, expected)
 
