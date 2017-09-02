@@ -199,7 +199,7 @@ class TestIncludeArranging:
             include_sequence=TestIncludeOrdering.default_sequencer())
 
     def _assert_printed(self, capfd, subC0out='', subC0err=''):
-        assert capfd.readouterr() == (subC0out, subC0err)
+        assert (subC0out, subC0err) == capfd.readouterr()
 
     def _feed_code(self, arranger, code):
         for line in code.splitlines():
