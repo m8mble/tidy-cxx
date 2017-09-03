@@ -368,7 +368,7 @@ some code line
 #include <componentA/some.H>
 // This is a very very very very very very very very very very very very very very very very very very long comment. . .
 #include <componentA/thing.H> // It even has to be split into several lines
-#include <componentA/uber.H> // Maximally long inline commmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmment
+#include <componentA/uber.H> // Maximally long inline commmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmment
 #include <componentA/very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_long.H>
 '''
         expected = '''
@@ -377,7 +377,7 @@ some code line
 // This is a very very very very very very very very very very very very very very very very very very long comment. . .
 // It even has to be split into several lines
 #include <componentA/thing.H>
-#include <componentA/uber.H> // Maximally long inline commmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmment
+#include <componentA/uber.H> // Maximally long inline commmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmment
 #include <componentA/very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_long.H>
 '''
         self.perform_test(include_arranger, capfd, code, expected)
