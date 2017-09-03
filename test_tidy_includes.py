@@ -419,8 +419,99 @@ some code line
 '''
         self.perform_test(include_arranger, capfd, code, expected)
 
+    def test_real_world(self, capfd, include_arranger):
+        code = '''
+/*
+**
+**
+** COPYRIGHT
+**
+**
+*/
+/* $Id: */
+
+#ifndef CPC_MOM_H
+#define CPC_MOM_H
+
+#include "c_fast.H"
+#include "c_base.H"
+#include "c_arc.H"
+#include "c_functions.H"
+#include "c_exact.H"
+#include <stdint.h>
+#include <componentB/subB0/b_context.H>
+#include <componentB/subB1/b_hash.H>
+#include <componentA/subA0/subA0a/a_base.H>
+#include <componentA/subA0/subA0b/a_iface.H>
+#include <componentA/subA1/subA0a/a_base.H>
+#include <componentA/subA1/subA0b/a_unit.H>
+
+
+namespace CPC {
+
+
+   class Foo
+   {
+   }; // Foo
+
+   class Bar : public Foo
+   {
+   }; // Bar
+
+
+} // CPC
+
+'''
+        expected = '''
+/*
+**
+**
+** COPYRIGHT
+**
+**
+*/
+/* $Id: */
+
+#ifndef CPC_MOM_H
+#define CPC_MOM_H
+
+#include <stdint.h>
+
+#include <componentA/subA0/subA0a/a_base.H>
+
+#include <componentA/subA0/subA0b/a_iface.H>
+
+#include <componentA/subA1/subA0a/a_base.H>
+#include <componentA/subA1/subA0b/a_unit.H>
+
+#include <componentB/subB0/b_context.H>
+#include <componentB/subB1/b_hash.H>
+
+#include "c_arc.H"
+#include "c_base.H"
+#include "c_exact.H"
+#include "c_fast.H"
+#include "c_functions.H"
+
+
+namespace CPC {
+
+
+   class Foo
+   {
+   }; // Foo
+
+   class Bar : public Foo
+   {
+   }; // Bar
+
+
+} // CPC
+
+'''
+        self.perform_test(include_arranger, capfd, code, expected)
+
 
 # TODO: Test what happens on non-empty last line
-# TODO: Test with include guards, multiple include sections and actual body code
 # TODO: Comments output stripped on both sides
 # TODO: Test with no/default arguments in IncludeArranger c'tor
