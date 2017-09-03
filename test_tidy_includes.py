@@ -403,10 +403,24 @@ some code line
 '''
         self.perform_test(include_arranger, capfd, code, expected)
 
+    def test_mother_ordering(self, capfd, include_arranger):
+        """ This test ensures the mother of the C-file is artificially sorted to the top. """
+        code = '''
+#include <iostream>
+#include <componentA/thing.H>
+#include "mom.H"
+'''
+        expected = '''
+#include "mom.H"
+
+#include <iostream>
+
+#include <componentA/thing.H>
+'''
+        self.perform_test(include_arranger, capfd, code, expected)
 
 
 # TODO: Test what happens on non-empty last line
 # TODO: Test with include guards, multiple include sections and actual body code
 # TODO: Comments output stripped on both sides
-# TODO: Test mother stuff
 # TODO: Test with no/default arguments in IncludeArranger c'tor
