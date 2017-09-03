@@ -12,6 +12,19 @@ import subprocess
 import textwrap
 
 
+def _split_groups(iterable, key=lambda x: x):
+    result = []
+    last_key = None
+    for element in iterable:
+        cur_key = key(element)
+        if last_key == cur_key:
+            result[-1].append(element)
+        else:
+            result.append([element])
+            last_key = cur_key
+    return result
+
+
 class IncludeTreeNode(object):
     delimiter = '/'
     root_name = 'root'
@@ -299,24 +312,17 @@ class IncludeArranger(comment_parser.CommentParser):
     def _print_cached(self):
         logging.debug('Printing cache...')
         self._prepare_includes()
-        prev_group_id = None
-        data_to_print = []
-        if self.mother:
-            data_to_print.append(([self.mother], '"', '"'))
-        data_to_print.append((self.sys_includes, '<', '>'))
-        data_to_print.append((self.abs_includes, '<', '>'))
-        data_to_print.append((self.rel_includes, '"', '"'))
-
-        group_texts = []
-        for data, pre, post in data_to_print:
-            group_texts.append('')
-            for include in data:
-                new_group_id = self._include_sequence.group_id(include)
-                if prev_group_id != new_group_id:
-                    group_texts.append('')
-                group_texts[-1] += self._include_text(include, pre, post)
-                prev_group_id = new_group_id
-        print('\n'.join([g for g in group_texts if g]), end='')
+        data_to_print = [
+            ([i for i in [self.mother] if i], '"', '"'),
+            (self.sys_includes, '<', '>'), (self.abs_includes, '<', '>'), (self.rel_includes, '"', '"')
+        ]
+        # Split into groups identified by group_id
+        groups = [(g, pre, post) for data, pre, post in data_to_print
+                                 for g in _split_groups(data, key=self._include_sequence.group_id) if g]
+        # Transform each group to '#include ...' strings using _include_text
+        groups = [''.join(self._include_text(include, pre, post) for include in group) for group, pre, post in groups]
+        # Print groups separated by single newline
+        print('\n'.join(groups), end='')
 
     def _reset(self):
         logging.debug('Resetting cached data..')
