@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import tidy_includes
-import comment_parser
+from . import tidy_includes
+from . import comment_parser
 
 
 class TestIncludeOrdering:

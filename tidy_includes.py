@@ -2,7 +2,7 @@ __author__ = 'm8mble'
 __email__ = 'm8mble@vivaldi.net'
 __version__ = '0.1'
 
-import comment_parser
+from . import comment_parser
 
 import collections
 import logging
