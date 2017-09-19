@@ -1,4 +1,4 @@
-Tidy CXX
+Tidy CXX [![Build Status][travis-badge]][travis-status]
 ==========
 
 Tools for Tidying up C/C++ Code.
@@ -14,3 +14,7 @@ Todos:
 -------
 
  - Add CLIs eg. for a copyright fixer.
+
+
+[travis-badge]: https://travis-ci.org/m8mble/tidy-cxx.svg
+[travis-status]: https://travis-ci.org/m8mble/tidy-cxx
