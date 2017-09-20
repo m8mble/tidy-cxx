@@ -4,7 +4,7 @@ python:
 os:
   - linux
 install:
-  - pip install -r requirements.txt
+  - pip install .
 script:
-  - pip install -r test_requirements.txt
+  - pip install -e .[test]
   - pytest -vv --maxfail=1
