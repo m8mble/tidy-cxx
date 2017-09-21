@@ -1,17 +1,13 @@
-#!/usr/bin/env python3
-
-from unittest.mock import MagicMock
-
 import pytest
 
-from . import tidy_includes
-from . import comment_parser
+from tidycxx.includes import IncludeSequencer, IncludeArranger
+from tidycxx.comments import CommentParser
 
 
 class TestIncludeOrdering:
     @staticmethod
     def default_sequencer():
-        seq = tidy_includes.IncludeSequencer()
+        seq = IncludeSequencer()
         root = seq.add_root()
         root.insert('componentA', descendable=True)
         root.insert('componentB')
@@ -51,9 +47,9 @@ class TestIncludeOrdering:
 ########################################################################################################################
 
 
-class CommentParserMock(comment_parser.CommentParser):
+class CommentParserMock(CommentParser):
     def __init__(self):
-        comment_parser.CommentParser.__init__(self)
+        CommentParser.__init__(self)
         self.code = []
         self.new_comments = []
         self.old_comments = []
@@ -193,7 +189,7 @@ class TestIncludeArranging:
 
     @pytest.fixture
     def include_arranger(self):
-        return tidy_includes.IncludeArranger(
+        return IncludeArranger(
             git_root='/home/john/work/',
             original_name='prjA/mom.C',
             include_sequence=TestIncludeOrdering.default_sequencer())

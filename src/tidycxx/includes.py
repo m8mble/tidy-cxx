@@ -2,7 +2,7 @@ __author__ = 'm8mble'
 __email__ = 'm8mble@vivaldi.net'
 __version__ = '0.1'
 
-from . import comment_parser
+from . import comments
 
 import collections
 import logging
@@ -144,7 +144,7 @@ class _IncludeBuffer:
         self.original += (('/*%s*/' if old else '//%s') % text)
 
 
-class IncludeArranger(comment_parser.CommentParser):
+class IncludeArranger(comments.CommentParser):
 
     def __init__(self, git_root, original_name, include_sequence=None, include_apply=None):
         """ Class for normalizing include structure for a single file of source code.
@@ -156,7 +156,7 @@ class IncludeArranger(comment_parser.CommentParser):
         :param include_sequence:
         :param include_apply: Callback invoked on each include discovered. TODO: Document interface.
         """
-        comment_parser.CommentParser.__init__(self)
+        comments.CommentParser.__init__(self)
         self.git_root = git_root  # Root folder of the managing git repository
         self.original_name = original_name  # Filename of the original input file
         self.abs_includes = set()
